@@ -8,13 +8,16 @@ import {chunk, mkdirp} from './util';
 import {getFramesOfVideo, loadImage, saveImageToFile} from './videoUtils';
 
 interface Program {
-  video: string, internalResolution: number
+  video: string, internalResolution: number, batchSize: number
 }
+
+const DEFAULT_BATCH_SIZE = 10;
 
 const parseArgs = (): Program => {
   program.requiredOption('-v', '--video <video>', 'the name of the video')
       .requiredOption(
-          '-i', '--internalResolution <number>', 'the internal resolution');
+          '-i', '--internalResolution <number>', 'the internal resolution')
+      .option('-b', '--batchSize <batchSize>', undefined, DEFAULT_BATCH_SIZE);
 
   program.parse(process.argv);
 
@@ -22,8 +25,9 @@ const parseArgs = (): Program => {
 
   const video = program.args[0] as string;
   const internalResolution = +program.args[1] as number;
+  const batchSize = +program.args[2] as number;
 
-  return {video, internalResolution};
+  return {video, internalResolution, batchSize};
 };
 
 const segmentFrameAndCreateResultsImage = async(
