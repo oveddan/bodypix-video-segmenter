@@ -4,7 +4,7 @@ import * as program from 'commander';
 
 import * as config from './config';
 import {Frame} from './types';
-import {mkdirp} from './util';
+import {chunk, mkdirp} from './util';
 import {getFramesOfVideo, loadImage, saveImageToFile} from './videoUtils';
 
 interface Program {
@@ -71,6 +71,8 @@ const segmentFrameAndSaveResult =
   segmentationResultImage.dispose();
 }
 
+const batchSize = 10;
+
 const main =
     async () => {
   const {video, internalResolution} = parseArgs();
@@ -87,10 +89,22 @@ const main =
 
   await mkdirp(config.desitnationFrameFolder(video));
 
-  for (let i = 0; i < frames.length; i++) {
-    const frame = frames[i];
-    console.log('estimating frame ', frame.fileName);
-    await segmentFrameAndSaveResult(net, frame, internalResolution, video);
+  const frameBatches = chunk(frames, batchSize);
+
+  for (let i = 0; i < frameBatches.length; i++) {
+    const frameBatch = frameBatches[i];
+
+    const startTime = new Date().getTime();
+    console.log(
+        'estimating batch frames: ', frameBatch.map(({fileName}) => fileName));
+
+    const segmentAndFramePromises = frameBatch.map(
+        frame =>
+            segmentFrameAndSaveResult(net, frame, internalResolution, video));
+
+    await Promise.all(segmentAndFramePromises);
+
+    console.log('batch completed in :', new Date().getTime() - startTime);
   }
 }
 
