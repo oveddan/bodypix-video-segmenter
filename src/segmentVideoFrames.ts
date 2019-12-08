@@ -79,7 +79,7 @@ const main =
 
   console.log('loading bodypix...')
   const net = await bodypix.load(
-      {architecture: 'ResNet50', quantBytes: 1, outputStride: 16});
+      {architecture: 'ResNet50', quantBytes: 4, outputStride: 16});
   // const net = await bodypix.load(
   //     {architecture: 'MobileNetV1', quantBytes: 1, outputStride: 16});
 
