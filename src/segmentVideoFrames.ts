@@ -156,6 +156,8 @@ const main =
   // const net = await bodypix.load(
   //     {architecture: 'MobileNetV1', quantBytes: 1, outputStride: 16});
 
+  const startTime = new Date().getTime();
+
   const frames = await getFramesOfVideo(video);
 
   await mkdirp(config.desitnationFrameFolder(video));
@@ -175,6 +177,10 @@ const main =
 
     console.log('batch completed in :', new Date().getTime() - startTime);
   }
+
+  console.log(
+      `time to complete ${frames.length} frames: `,
+      new Date().getTime() - startTime);
 }
 
 main();
