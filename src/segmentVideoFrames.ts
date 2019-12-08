@@ -75,11 +75,9 @@ const segmentFrameAndSaveResult =
   segmentationResultImage.dispose();
 }
 
-const batchSize = 10;
-
 const main =
     async () => {
-  const {video, internalResolution} = parseArgs();
+  const {video, internalResolution, batchSize} = parseArgs();
 
   // console.log('da video', video, internalResolution);
 
