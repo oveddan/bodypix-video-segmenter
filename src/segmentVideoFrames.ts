@@ -131,6 +131,7 @@ const segmentFramesAndSaveResult =
         video: string) => {
   const segmentedFrames = await segmentFrames(net, frames, internalResolution);
 
+  const saveStartTime = new Date().getTime();
   const saveFramesPromises =
       segmentedFrames.map(({fileName, height, width, data}) => {
         const destinationFile = config.destinationFrame(video, fileName);
@@ -139,6 +140,8 @@ const segmentFramesAndSaveResult =
       });
 
   await Promise.all(saveFramesPromises);
+
+  console.log('time to save frames: ', new Date().getTime() - saveStartTime);
 }
 
 const main =
