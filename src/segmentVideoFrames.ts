@@ -47,7 +47,7 @@ const segmentFrameAndCreateResultsImage = async(
 
     const fullImage = tf.concat3d([input, maskRgb], 1);
 
-    console.log('shapes', fullImage.shape, maskRgb.shape, input.shape);
+    // console.log('shapes', fullImage.shape, maskRgb.shape, input.shape);
 
     return fullImage;
   });
