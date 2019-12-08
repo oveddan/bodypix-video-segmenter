@@ -8,13 +8,17 @@ import {Frame} from './types';
 
 const tfjs_node = require('./tfjs_node');
 
-export async function loadImage(path: string): Promise<tf.Tensor3D> {
-  const file = await fs.promises.readFile(path);
+export const loadFileBlob = (path: string) => fs.promises.readFile(path);
 
-  const image = tfjs_node.node.decodeImage(file) as tf.Tensor3D;
+export const imageToPng = (file: Buffer) =>
+    tfjs_node.node.decodeImage(file) as tf.Tensor3D
 
-  return image;
-}
+export async function loadImage(path: string):
+    Promise<tf.Tensor3D> {
+      const file = await loadFileBlob(path);
+
+      return imageToPng(file);
+    }
 
 export async function getFilesInFolder(path: string) {
   const files = await fs.promises.readdir(path);
@@ -43,14 +47,11 @@ export const getFramesOfVideo = async(video: string):
     }
 
 
-export async function saveImageToFile(image: tf.Tensor3D, path: string) {
-  const data = await image.data();
-  const pngImage = new pngjs.PNG({
-    colorType: 2,
-    width: image.shape[1],
-    height: image.shape[0],
-    inputColorType: 2
-  });
+export async function saveImageToFile(
+    height: number, width: number, data: tf.backend_util.TypedArray,
+    path: string) {
+  const pngImage =
+      new pngjs.PNG({colorType: 2, width, height, inputColorType: 2});
 
   // console.log('data', segmentation.data);
   pngImage.data = Buffer.from(data);
