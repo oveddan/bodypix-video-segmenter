@@ -8,7 +8,10 @@ export const DESTINATION_FOLDER = process.env.DESTINATION_FOLDER;
 export const GPU = process.env.GPU;
 
 export const videoFramesFolder = (videoName: string) =>
-    join(SOURCE_MEDIA_FOLDER, videoName, 'frames');
+    join(DESTINATION_FOLDER, videoName, 'frames');
+
+export const desitnationFrameFolder = (videoName: string) =>
+    join(DESTINATION_FOLDER, videoName, 'segmentations');
 
 export const destinationFrame = (videoName: string, frameName: string) =>
-    join(DESTINATION_FOLDER, videoName, 'segmentations', frameName);
+    join(desitnationFrameFolder(videoName), frameName);

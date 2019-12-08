@@ -1,9 +1,10 @@
 import * as bodypix from '@tensorflow-models/body-pix';
 import * as tf from '@tensorflow/tfjs-core'
 import * as program from 'commander';
-import * as config from './config';
 
+import * as config from './config';
 import {Frame} from './types';
+import {mkdirp} from './util';
 import {getFramesOfVideo, loadImage, saveImageToFile} from './videoUtils';
 
 interface Program {
@@ -83,6 +84,8 @@ const main =
   //     {architecture: 'MobileNetV1', quantBytes: 1, outputStride: 16});
 
   const frames = await getFramesOfVideo(video);
+
+  await mkdirp(config.desitnationFrameFolder(video));
 
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i];
