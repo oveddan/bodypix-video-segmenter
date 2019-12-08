@@ -1,0 +1,27 @@
+{
+  "name": "video-segmenter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "segment": "ts-node src/segmentVideoFrames.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@tensorflow-models/body-pix": "^2.0.4",
+    "@tensorflow/tfjs-core": "^1.4.0",
+    "@tensorflow/tfjs-node": "^1.4.0",
+    "@tensorflow/tfjs-node-gpu": "^1.4.0",
+    "commander": "^4.0.1",
+    "dotenv": "^8.2.0",
+    "pngjs": "^3.4.0",
+    "ts-node": "^8.5.4",
+    "typescript": "^3.7.3",
+    "yargs": "^15.0.2"
+  },
+  "devDependencies": {
+    "@types/pngjs": "^3.4.0",
+    "clang-format": "~1.2.2"
+  }
+}
