@@ -90,47 +90,51 @@ const loadBatchFileBlobs =
   return files;
 }
 
-const segmentFrames =
-    async (
-        net: bodypix.BodyPix, frames: Frame[], internalResolution: number) => {
-  const frameLoadStartTime = new Date().getTime();
-  const filesBatch = await loadBatchFileBlobs(frames);
-
-  console.log(
-      'time to load frames: ', new Date().getTime() - frameLoadStartTime);
-
-  const inferenceStartTime = new Date().getTime();
-  const resultsImages = tf.tidy(() => {
-    const images: tf.Tensor3D[] = filesBatch.map(({file}) => imageToPng(file));
-
-    return images.map(
-        frame =>
-            segmentFrameAndCreateResultsImage(net, frame, internalResolution));
-  });
-
-  const resultImagesData =
-      await Promise.all(resultsImages.map(async image => ({
-                                            height: image.shape[0],
-                                            width: image.shape[1],
-                                            data: await image.data()
-                                          })));
-
-  resultsImages.forEach(x => x.dispose());
-
-  console.log(
-      'time to perform inference: ', new Date().getTime() - inferenceStartTime);
-
-
-  return resultImagesData.map(
-      (image, i) => ({...image, fileName: filesBatch[i].fileName}));
+interface SegmentationResult {
+  width: number, height: number, data: tf.backend_util.TypedArray,
+      fileName: string
 }
+;
 
-const segmentFramesAndSaveResult =
-    async (
-        net: bodypix.BodyPix, frames: Frame[], internalResolution: number,
-        video: string) => {
-  const segmentedFrames = await segmentFrames(net, frames, internalResolution);
+const segmentFrames = async(
+    net: bodypix.BodyPix, frames: Frame[], internalResolution: number):
+    Promise<SegmentationResult[]> => {
+      const frameLoadStartTime = new Date().getTime();
+      const filesBatch = await loadBatchFileBlobs(frames);
 
+      console.log(
+          'time to load frames: ', new Date().getTime() - frameLoadStartTime);
+
+      const inferenceStartTime = new Date().getTime();
+      const resultsImages = tf.tidy(() => {
+        const images: tf.Tensor3D[] =
+            filesBatch.map(({file}) => imageToPng(file));
+
+        return images.map(
+            frame => segmentFrameAndCreateResultsImage(
+                net, frame, internalResolution));
+      });
+
+      const resultImagesData =
+          await Promise.all(resultsImages.map(async image => ({
+                                                height: image.shape[0],
+                                                width: image.shape[1],
+                                                data: await image.data()
+                                              })));
+
+      resultsImages.forEach(x => x.dispose());
+
+      console.log(
+          'time to perform inference: ',
+          new Date().getTime() - inferenceStartTime);
+
+
+      return resultImagesData.map(
+          (image, i) => ({...image, fileName: filesBatch[i].fileName}));
+    }
+
+const saveResults =
+    async (segmentedFrames: SegmentationResult[], video: string) => {
   const saveStartTime = new Date().getTime();
   const saveFramesPromises =
       segmentedFrames.map(({fileName, height, width, data}) => {
@@ -142,6 +146,15 @@ const segmentFramesAndSaveResult =
   await Promise.all(saveFramesPromises);
 
   console.log('time to save frames: ', new Date().getTime() - saveStartTime);
+}
+
+const segmentFramesAndSaveResult =
+    async (
+        net: bodypix.BodyPix, frames: Frame[], internalResolution: number,
+        video: string) => {
+  const segmentedFrames = await segmentFrames(net, frames, internalResolution);
+
+  saveResults(segmentedFrames, video);
 }
 
 const main =
