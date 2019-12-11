@@ -19,9 +19,8 @@ export const temporaryResultsVideoPath = () =>
 
 export const videoFramesFolder = () => join(LOCAL_PROCESSING_FOLDER, 'frames');
 
-export const resultFramesFolder = () => join(
-    DESTINATION_FOLDER,
-)
+export const resultFramesFolder = () =>
+    join(LOCAL_PROCESSING_FOLDER, 'segmentations');
 
 export const resultsVideoPath = (video: string) =>
     join(DESTINATION_FOLDER, video + 'results.mp4');

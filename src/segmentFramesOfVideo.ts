@@ -1,10 +1,11 @@
 import * as bodypix from '@tensorflow-models/body-pix';
 import * as tf from '@tensorflow/tfjs-core'
-import {join} from 'path';
+import * as data from '@tensorflow/tfjs-data';
+import {basename, join} from 'path';
 
 // import * as config from './config';
 import {Frame} from './types';
-import {chunk, mkdirp} from './util';
+import {mkdirp} from './util';
 import {getFramesInFolder, imageToPng, loadFileBlob, saveImageToFile} from './videoUtils';
 
 // interface Program {
@@ -47,7 +48,6 @@ const segmentFrameAndCreateResultsImage =
 
         const maskRgb = tf.concat3d(maskChannels, 2);
 
-        // console.log('ranks', input.shape, maskRgb.shape);
 
         return tf.concat3d([input, maskRgb], 1) as tf.Tensor3D;
       });
@@ -82,61 +82,87 @@ const segmentFrameAndCreateResultsImage =
 //   segmentationResultImage.dispose();
 // }
 
-const loadBatchFileBlobs =
-    async (frames: Frame[]) => {
-  const files = await Promise.all(frames.map(
-      async ({fullPath, fileName}) =>
-          ({fileName, file: await loadFileBlob(fullPath)})));
+// const loadBatchFileBlobs =
+//     async (frames: Frame[]) => {
+//   const files = await Promise.all(frames.map(
+//       async ({fullPath, fileName}) =>
+//           ({fileName, file: await loadFileBlob(fullPath)})));
 
-  return files;
-}
+//   return files;
+// }
 
 interface SegmentationResult {
   width: number, height: number, data: tf.backend_util.TypedArray,
       fileName: string
 }
-;
+
+function zeroFill(number: string, width: number) {
+  width -= number.toString().length;
+  if (width > 0) {
+    return new Array(width + (/\./.test(number) ? 2 : 1)).join('0') + number;
+  }
+  return number + '';  // always return a string
+}
+
+const getFileName = (frameNumber: number) => {
+  const zeroFilled = zeroFill(String(frameNumber), 9);
+
+  return `${zeroFilled}.png`;
+};
 
 const segmentFrames = async(
-    net: bodypix.BodyPix, frames: Frame[], internalResolution: number):
-    Promise<SegmentationResult[]> => {
-      const frameLoadStartTime = new Date().getTime();
-      const filesBatch = await loadBatchFileBlobs(frames);
+    net: bodypix.BodyPix, frames: FramesBatch,
+    internalResolution: number): Promise<SegmentationResult[]> => {
+  // const frameLoadStartTime = new Date().getTime();
 
-      console.log(
-          'time to load frames: ', new Date().getTime() - frameLoadStartTime);
+  // console.log(
+  //     'time to load frames: ', new Date().getTime() - frameLoadStartTime);
 
-      const inferenceStartTime = new Date().getTime();
-      const resultsImages = tf.tidy(() => {
-        const images: tf.Tensor3D[] =
-            filesBatch.map(({file}) => imageToPng(file));
+  const inferenceStartTime = new Date().getTime();
 
-        return images.map(
-            frame => segmentFrameAndCreateResultsImage(
-                net, frame, internalResolution));
-      });
+  const resultsImages = tf.tidy(() => {
+    const images = frames.image.unstack(0) as tf.Tensor3D[];
+    // const frameNumbers = frames.frame.unstack(0) as tf.Scalar[];
 
-      const resultImagesData =
-          await Promise.all(resultsImages.map(async image => ({
-                                                height: image.shape[0],
-                                                width: image.shape[1],
-                                                data: await image.data()
-                                              })));
+    // console.log(
+    //     'segmenting frames: ', frames.map(({path}) =>
+    //     getFileName(path)));
 
-      resultsImages.forEach(x => x.dispose());
+    // const images: tf.Tensor3D[] = frames.map(({image}) =>
+    // imageToPng(image));
 
-      console.log(
-          'time to perform inference: ',
-          new Date().getTime() - inferenceStartTime);
+    return images.map(
+        (frame) =>
+            segmentFrameAndCreateResultsImage(net, frame, internalResolution));
+  });
 
+  const frameNumbers = await frames.frame.data();
+  const resultImagesData = await Promise.all(
+      resultsImages.map(async (image, i) => ({
+                          height: image.shape[0],
+                          width: image.shape[1],
+                          data: await image.data(),
+                          fileName: getFileName(frameNumbers[i])
+                        })));
 
-      return resultImagesData.map(
-          (image, i) => ({...image, fileName: filesBatch[i].fileName}));
-    }
+  resultsImages.forEach((image) => {
+    image.dispose();
+  });
 
-const saveResults =
-    async (
-        segmentedFrames: SegmentationResult[], destinationFolder: string) => {
+  console.log(
+      'time to perform inference: ', new Date().getTime() - inferenceStartTime);
+
+  console.log(
+      'processed images',
+      resultImagesData.map(({fileName}) => fileName).join(','));
+
+  return resultImagesData;
+  // return resultImagesData.map(
+  //     (image, i) => ({...image, fileName: getFileName(image.name}));
+};
+
+const saveResults = async (
+    segmentedFrames: SegmentationResult[], destinationFolder: string) => {
   const saveStartTime = new Date().getTime();
   const saveFramesPromises =
       segmentedFrames.map(({fileName, height, width, data}) => {
@@ -148,23 +174,51 @@ const saveResults =
   await Promise.all(saveFramesPromises);
 
   console.log('time to save frames: ', new Date().getTime() - saveStartTime);
-}
+};
 
-const segmentFramesAndSaveResult =
-    async (
-        net: bodypix.BodyPix, frames: Frame[], internalResolution: number,
-        destinationFoldere: string) => {
+const segmentFramesAndSaveResult = async (
+    net: bodypix.BodyPix, frames: FramesBatch, internalResolution: number,
+    destinationFoldere: string) => {
   const segmentedFrames = await segmentFrames(net, frames, internalResolution);
 
   saveResults(segmentedFrames, destinationFoldere);
+};
+
+interface FramesBatch {
+  frame: tf.Tensor1D;
+  image: tf.Tensor4D;
 }
+
+const pathToFrameNumber = (path: string): number => {
+  const fileName = basename(path);
+
+  const result = parseInt(fileName.split(',')[0]);
+
+  return result;
+};
+
+const createFramesDataSet = (frames: Frame[], batchSize: number) => {
+  const filePaths = frames.map(({fullPath}) => fullPath);
+
+  const dataset = data.array(filePaths).mapAsync(
+      async (path) => ({
+        frame: pathToFrameNumber(path),
+        image: imageToPng(await loadFileBlob(path))
+      }));
+
+  const batched = dataset.batch(batchSize) as
+      data.Dataset<{frame: tf.Tensor1D, image: tf.Tensor4D}>;
+
+  return batched.prefetch(2);
+};
+
 
 export const segmentFramesOfVideo =
     async (
         sourceFolder: string, resultsFolder: string, internalResolution: number,
         batchSize: number) => {
   // console.log('da video', video, internalResolution);
-
+  console.log('batch size', batchSize);
   console.log('loading bodypix...')
   const net = await bodypix.load(
       {architecture: 'ResNet50', quantBytes: 4, outputStride: 16});
@@ -177,20 +231,35 @@ export const segmentFramesOfVideo =
 
   await mkdirp(resultsFolder);
 
-  const frameBatches = chunk(frames, batchSize);
+  // const frameBatches = chunk(frames, batchSize);
 
-  for (let i = 0; i < frameBatches.length; i++) {
-    const frameBatch = frameBatches[i];
+  // let prefetchFrames: (fileNames: string[]) => Promise<tf.Tensor3D[]>;
 
-    const startTime = new Date().getTime();
-    console.log(
-        'estimating batch frames: ', frameBatch.map(({fileName}) => fileName));
+  const dataset = createFramesDataSet(frames, batchSize);
 
+  await dataset.forEachAsync(async batch => {
+    // console.log('batch', batch);
     await segmentFramesAndSaveResult(
-        net, frameBatch, internalResolution, resultsFolder);
+        net, batch, internalResolution, resultsFolder);
+    // console.log('got batch', batch);
 
-    console.log('batch completed in :', new Date().getTime() - startTime);
-  }
+    batch.image.dispose();
+    batch.frame.dispose();
+  });
+  // for (let i = 0; i < frameBatches.length; i++) {
+  //   const frameBatch = frameBatches[i];
+
+  //   const startTime = new Date().getTime();
+  //   console.log(
+  //       'estimating batch frames: ',
+  //       frameBatch.map(({fileName}) => fileName).join(','));
+
+  //   await segmentFramesAndSaveResult(
+  //       net, frameBatch, internalResolution, resultsFolder);
+
+  //   console.log('batch completed in :', new Date().getTime() -
+  //   startTime);
+  // }
 
   console.log(
       `time to complete ${frames.length} frames: `,

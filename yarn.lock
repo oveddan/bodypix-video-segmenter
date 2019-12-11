@@ -24,7 +24,7 @@
     node-fetch "~2.1.2"
     seedrandom "2.4.3"
 
-"@tensorflow/tfjs-data@1.4.0":
+"@tensorflow/tfjs-data@1.4.0", "@tensorflow/tfjs-data@^1.4.0":
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/@tensorflow/tfjs-data/-/tfjs-data-1.4.0.tgz#20c3902dc9a00610ec85a5bed9bb0dd60d92b270"
   integrity sha512-00N/pe5IYkO3aDI9ZmavQ6mwY4VIepCteusnI7DLiCeqBO0NzGjlH3zH1LVlWIBRypW7JNqYbdl3oVvnd2wWwg==
