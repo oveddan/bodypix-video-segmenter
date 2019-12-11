@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "segment": "ts-node src/segmentVideoFrames.ts"
+    "segment": "ts-node src/segmentVideo.ts"
   },
   "author": "",
   "license": "ISC",

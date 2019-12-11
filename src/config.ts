@@ -5,10 +5,26 @@ dotenv.config()
 
 export const SOURCE_MEDIA_FOLDER = process.env.SOURCE_MEDIA_FOLDER;
 export const DESTINATION_FOLDER = process.env.DESTINATION_FOLDER;
+export const LOCAL_PROCESSING_FOLDER = process.env.LOCAL_PROCESSING_FOLDER;
 export const GPU = process.env.GPU;
 
-export const videoFramesFolder = (videoName: string) =>
-    join(DESTINATION_FOLDER, videoName, 'frames');
+export const sourceVideoPath = (video: string) =>
+    join(SOURCE_MEDIA_FOLDER, video + '.mp4');
+
+export const temporaryVideoPath = () =>
+    join(LOCAL_PROCESSING_FOLDER, 'source.mp4');
+
+export const temporaryResultsVideoPath = () =>
+    join(LOCAL_PROCESSING_FOLDER, 'results.mp4');
+
+export const videoFramesFolder = () => join(LOCAL_PROCESSING_FOLDER, 'frames');
+
+export const resultFramesFolder = () => join(
+    DESTINATION_FOLDER,
+)
+
+export const resultsVideoPath = (video: string) =>
+    join(DESTINATION_FOLDER, video + 'results.mp4');
 
 export const desitnationFrameFolder = (videoName: string) =>
     join(DESTINATION_FOLDER, videoName, 'segmentations');

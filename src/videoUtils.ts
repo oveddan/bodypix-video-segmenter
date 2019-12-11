@@ -3,8 +3,9 @@ import * as fs from 'fs';
 import {join} from 'path';
 import * as pngjs from 'pngjs';
 
-import * as config from './config';
+// import * as config from './config';
 import {Frame} from './types';
+import {executeCommand, getVideoFps, mkdirp} from './util';
 
 const tfjs_node = require('./tfjs_node');
 
@@ -35,16 +36,33 @@ export async function getFilesInFolder(path: string) {
 //   await fs.promises.writeFile(path, JSON.stringify({poses: poses}));
 // }
 
-export const getFramesOfVideo = async(video: string):
-    Promise<Frame[]> => {
-      const videoFramesFolder = config.videoFramesFolder(video);
+export const getFramesInFolder = async(folder: string): Promise<Frame[]> => {
+  const frameFiles = await getFilesInFolder(folder);
 
-      const frameFiles = await getFilesInFolder(videoFramesFolder);
+  return frameFiles.map(
+      fileName => ({fileName, fullPath: join(folder, fileName)}));
+};
 
-      return frameFiles.map(
-          fileName =>
-              ({fileName, fullPath: join(videoFramesFolder, fileName)}));
-    }
+// export const getFramesOfVideo = async(video: string): Promise<Frame[]> => {
+//   return getFramesInFolder(config.videoFramesFolder());
+// };
+
+
+export const convertVideoToFrames =
+    async (videoPath: string, framesFolder: string) => {
+  console.log(`Turning video from ${videoPath} into frames in ${framesFolder}`);
+  await mkdirp(framesFolder);
+
+  await executeCommand(`ffmpeg -i ${videoPath} ${framesFolder}/%09d.png`);
+};
+
+export const convertFramesToVideo = async (
+    sourceVideoPath: string, framesFolder: string, destinationFile: string) => {
+  const videoFps = await getVideoFps(sourceVideoPath);
+
+  await executeCommand(`ffmpeg -r ${videoFps} -f image2 -i ${
+      framesFolder}/%09d.png ${destinationFile}`);
+};
 
 
 export async function saveImageToFile(

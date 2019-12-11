@@ -1,34 +1,35 @@
 import * as bodypix from '@tensorflow-models/body-pix';
 import * as tf from '@tensorflow/tfjs-core'
-import * as program from 'commander';
+import {join} from 'path';
 
-import * as config from './config';
+// import * as config from './config';
 import {Frame} from './types';
 import {chunk, mkdirp} from './util';
-import {getFramesOfVideo, imageToPng, loadFileBlob, saveImageToFile} from './videoUtils';
+import {getFramesInFolder, imageToPng, loadFileBlob, saveImageToFile} from './videoUtils';
 
-interface Program {
-  video: string, internalResolution: number, batchSize: number
-}
+// interface Program {
+//   video: string, internalResolution: number, batchSize: number
+// }
 
-const DEFAULT_BATCH_SIZE = 10;
+// const DEFAULT_BATCH_SIZE = 10;
 
-const parseArgs = (): Program => {
-  program.requiredOption('-v', '--video <video>', 'the name of the video')
-      .requiredOption(
-          '-i', '--internalResolution <number>', 'the internal resolution')
-      .option('-b', '--batchSize <batchSize>', undefined, DEFAULT_BATCH_SIZE);
+// const parseArgs = (): Program => {
+//   program.requiredOption('-v', '--video <video>', 'the name of the video')
+//       .requiredOption(
+//           '-i', '--internalResolution <number>', 'the internal resolution')
+//       .option('-b', '--batchSize <batchSize>', undefined,
+//       DEFAULT_BATCH_SIZE);
 
-  program.parse(process.argv);
+//   program.parse(process.argv);
 
-  // console.log('result program', program);
+//   // console.log('result program', program);
 
-  const video = program.args[0] as string;
-  const internalResolution = +program.args[1] as number;
-  const batchSize = +program.args[2] as number;
+//   const video = program.args[0] as string;
+//   const internalResolution = +program.args[1] as number;
+//   const batchSize = +program.args[2] as number;
 
-  return {video, internalResolution, batchSize};
-};
+//   return {video, internalResolution, batchSize};
+// };
 
 const segmentFrameAndCreateResultsImage =
     (net: bodypix.BodyPix, input: tf.Tensor3D,
@@ -134,11 +135,12 @@ const segmentFrames = async(
     }
 
 const saveResults =
-    async (segmentedFrames: SegmentationResult[], video: string) => {
+    async (
+        segmentedFrames: SegmentationResult[], destinationFolder: string) => {
   const saveStartTime = new Date().getTime();
   const saveFramesPromises =
       segmentedFrames.map(({fileName, height, width, data}) => {
-        const destinationFile = config.destinationFrame(video, fileName);
+        const destinationFile = join(destinationFolder, fileName);
 
         return saveImageToFile(height, width, data, destinationFile);
       });
@@ -151,16 +153,16 @@ const saveResults =
 const segmentFramesAndSaveResult =
     async (
         net: bodypix.BodyPix, frames: Frame[], internalResolution: number,
-        video: string) => {
+        destinationFoldere: string) => {
   const segmentedFrames = await segmentFrames(net, frames, internalResolution);
 
-  saveResults(segmentedFrames, video);
+  saveResults(segmentedFrames, destinationFoldere);
 }
 
-const main =
-    async () => {
-  const {video, internalResolution, batchSize} = parseArgs();
-
+export const segmentFramesOfVideo =
+    async (
+        sourceFolder: string, resultsFolder: string, internalResolution: number,
+        batchSize: number) => {
   // console.log('da video', video, internalResolution);
 
   console.log('loading bodypix...')
@@ -171,9 +173,9 @@ const main =
 
   const startTime = new Date().getTime();
 
-  const frames = await getFramesOfVideo(video);
+  const frames = await getFramesInFolder(sourceFolder);
 
-  await mkdirp(config.desitnationFrameFolder(video));
+  await mkdirp(resultsFolder);
 
   const frameBatches = chunk(frames, batchSize);
 
@@ -185,8 +187,7 @@ const main =
         'estimating batch frames: ', frameBatch.map(({fileName}) => fileName));
 
     await segmentFramesAndSaveResult(
-        net, frameBatch, internalResolution, video);
-
+        net, frameBatch, internalResolution, resultsFolder);
 
     console.log('batch completed in :', new Date().getTime() - startTime);
   }
@@ -196,4 +197,7 @@ const main =
       new Date().getTime() - startTime);
 }
 
-main();
+// const main = () => {
+//   const {video, internalResolution, batchSize} = parseArgs();
+//   segmentFramesOfVideo(video, internalResolution, batchSize);
+// }
